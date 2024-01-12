@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/go-locks/testcase"
-	"github.com/letsfire/redigo"
-	"github.com/letsfire/redigo/mode/alone"
+	"github.com/letsfire/redigo/v2"
+	"github.com/letsfire/redigo/v2/mode/alone"
 )
 
 var mode1 = alone.New(
