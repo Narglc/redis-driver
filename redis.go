@@ -5,7 +5,7 @@ import (
 
 	"github.com/go-locks/distlock/driver"
 	"github.com/gomodule/redigo/redis"
-	"github.com/letsfire/redigo"
+	"github.com/letsfire/redigo/v2"
 	"github.com/mna/redisc"
 	"github.com/sirupsen/logrus"
 )
@@ -19,16 +19,16 @@ var (
 type redisDriver struct {
 	quorum  int
 	cluster bool
-	redigo  []*redigo.Redigo
+	redigo  []*redigo.Client
 }
 
 var _ driver.IWatcher = &redisDriver{}
 var _ driver.IDriver = &redisDriver{}
 var _ driver.IRWDriver = &redisDriver{}
 
-func New(redigo ...*redigo.Redigo) *redisDriver {
+func New(redigo ...*redigo.Client) *redisDriver {
 	for _, rg := range redigo {
-		rg.Exec(func(c redis.Conn) (res interface{}, err error) {
+		rg.Execute(func(c redis.Conn) (res interface{}, err error) {
 			lockScript.Load(c)
 			unlockScript.Load(c)
 			touchScript.Load(c)
@@ -51,7 +51,7 @@ func (rd *redisDriver) channelName(name string) string {
 	return "unlock-notify-channel-{" + name + "}"
 }
 
-func (rd *redisDriver) doLock(fn func(rg *redigo.Redigo) int) (bool, time.Duration) {
+func (rd *redisDriver) doLock(fn func(rg *redigo.Client) int) (bool, time.Duration) {
 	counter := rd.quorum
 	for _, rg := range rd.redigo {
 		for {
@@ -71,7 +71,7 @@ func (rd *redisDriver) doLock(fn func(rg *redigo.Redigo) int) (bool, time.Durati
 	return false, -1
 }
 
-func (rd *redisDriver) doTouch(fn func(rg *redigo.Redigo) bool) bool {
+func (rd *redisDriver) doTouch(fn func(rg *redigo.Client) bool) bool {
 	counter := rd.quorum
 	for _, rg := range rd.redigo {
 		if fn(rg) {
@@ -86,7 +86,7 @@ func (rd *redisDriver) doTouch(fn func(rg *redigo.Redigo) bool) bool {
 
 func (rd *redisDriver) Lock(name, value string, expiry time.Duration) (bool, time.Duration) {
 	msExpiry := int(expiry / time.Millisecond)
-	return rd.doLock(func(rg *redigo.Redigo) int {
+	return rd.doLock(func(rg *redigo.Client) int {
 		wait, err := rg.Int(func(c redis.Conn) (res interface{}, err error) {
 			if rd.cluster {
 				redisc.BindConn(c, name)
@@ -104,7 +104,7 @@ func (rd *redisDriver) Lock(name, value string, expiry time.Duration) (bool, tim
 func (rd *redisDriver) Unlock(name, value string) {
 	channel := rd.channelName(name)
 	for _, rg := range rd.redigo {
-		_, err := rg.Exec(func(c redis.Conn) (res interface{}, err error) {
+		_, err := rg.Execute(func(c redis.Conn) (res interface{}, err error) {
 			if rd.cluster {
 				redisc.BindConn(c, name, channel)
 			}
@@ -118,7 +118,7 @@ func (rd *redisDriver) Unlock(name, value string) {
 
 func (rd *redisDriver) Touch(name, value string, expiry time.Duration) bool {
 	msExpiry := int(expiry / time.Millisecond)
-	return rd.doTouch(func(rg *redigo.Redigo) bool {
+	return rd.doTouch(func(rg *redigo.Client) bool {
 		ok, err := rg.Bool(func(c redis.Conn) (res interface{}, err error) {
 			if rd.cluster {
 				redisc.BindConn(c, name)
@@ -134,7 +134,7 @@ func (rd *redisDriver) Touch(name, value string, expiry time.Duration) bool {
 
 func (rd *redisDriver) RLock(name, value string, expiry time.Duration) (bool, time.Duration) {
 	msExpiry := int(expiry / time.Millisecond)
-	return rd.doLock(func(rg *redigo.Redigo) int {
+	return rd.doLock(func(rg *redigo.Client) int {
 		wait, err := rg.Int(func(c redis.Conn) (res interface{}, err error) {
 			if rd.cluster {
 				redisc.BindConn(c, name)
@@ -152,7 +152,7 @@ func (rd *redisDriver) RLock(name, value string, expiry time.Duration) (bool, ti
 func (rd *redisDriver) RUnlock(name, value string) {
 	channel := rd.channelName(name)
 	for _, rg := range rd.redigo {
-		_, err := rg.Exec(func(c redis.Conn) (res interface{}, err error) {
+		_, err := rg.Execute(func(c redis.Conn) (res interface{}, err error) {
 			if rd.cluster {
 				redisc.BindConn(c, name, channel)
 			}
@@ -166,7 +166,7 @@ func (rd *redisDriver) RUnlock(name, value string) {
 
 func (rd *redisDriver) RTouch(name, value string, expiry time.Duration) bool {
 	msExpiry := int(expiry / time.Millisecond)
-	return rd.doTouch(func(rg *redigo.Redigo) bool {
+	return rd.doTouch(func(rg *redigo.Client) bool {
 		ok, err := rg.Bool(func(c redis.Conn) (res interface{}, err error) {
 			if rd.cluster {
 				redisc.BindConn(c, name)
@@ -182,7 +182,7 @@ func (rd *redisDriver) RTouch(name, value string, expiry time.Duration) bool {
 
 func (rd *redisDriver) WLock(name, value string, expiry time.Duration) (bool, time.Duration) {
 	msExpiry := int(expiry / time.Millisecond)
-	return rd.doLock(func(rg *redigo.Redigo) int {
+	return rd.doLock(func(rg *redigo.Client) int {
 		wait, err := rg.Int(func(c redis.Conn) (res interface{}, err error) {
 			if rd.cluster {
 				redisc.BindConn(c, name)
@@ -200,7 +200,7 @@ func (rd *redisDriver) WLock(name, value string, expiry time.Duration) (bool, ti
 func (rd *redisDriver) WUnlock(name, value string) {
 	channel := rd.channelName(name)
 	for _, rg := range rd.redigo {
-		_, err := rg.Exec(func(c redis.Conn) (res interface{}, err error) {
+		_, err := rg.Execute(func(c redis.Conn) (res interface{}, err error) {
 			if rd.cluster {
 				redisc.BindConn(c, name, channel)
 			}
@@ -220,10 +220,10 @@ func (rd *redisDriver) Watch(name string) <-chan struct{} {
 	channel := rd.channelName(name)
 	outChan := make(chan struct{})
 	for _, rg := range rd.redigo {
-		go func(rg *redigo.Redigo) {
+		go func(rg *redigo.Client) {
 			errSleepDuration := MinWatchRetryInterval
 			for {
-				err := rg.Sub(func(c redis.PubSubConn) error {
+				err := rg.Subscribe(func(c redis.PubSubConn) error {
 					if rd.cluster {
 						err := redisc.BindConn(c.Conn, channel)
 						if err != nil {

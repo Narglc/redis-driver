@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/go-locks/testcase"
-	"github.com/letsfire/redigo"
+	"github.com/letsfire/redigo/v2"
 	"github.com/letsfire/redigo/v2/mode/alone"
 )
 
