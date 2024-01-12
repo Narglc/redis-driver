@@ -5,7 +5,7 @@ import (
 
 	"github.com/go-locks/distlock/driver"
 	"github.com/gomodule/redigo/redis"
-	"github.com/letsfire/redigo/v2"
+	"github.com/letsfire/redigo"
 	"github.com/mna/redisc"
 	"github.com/sirupsen/logrus"
 )
